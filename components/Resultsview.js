@@ -101,7 +101,7 @@ export default function ResultsView({ response, onStartOver }) {
           <ul className="space-y-3">
             {claims.map((c, i) => (
               <li
-                key={i}
+                key={c.claim_id || i}
                 className="text-sm text-[#211E1A] leading-relaxed border-l-2 border-[#A67C27] pl-3"
               >
                 {c.statement || c}
@@ -115,12 +115,18 @@ export default function ResultsView({ response, onStartOver }) {
       {conflicts.length > 0 && (
         <Panel title="Conflicting claims" count={conflicts.length}>
           <ul className="space-y-3">
-            {conflicts.map((c, i) => (
+            {conflicts.map((conflict) => (
               <li
-                key={i}
-                className="text-sm text-[#211E1A] leading-relaxed border-l-2 border-[#9B3B33] pl-3"
+                key={conflict.topic}
+                className="border-l-2 border-[#9B3B33] pl-3 text-sm leading-relaxed text-[#211E1A]"
               >
-                {typeof c === "string" ? c : JSON.stringify(c)}
+                <p className="font-medium">{conflict.topic}</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {conflict.statements.map((statement) => (
+                    <li key={statement}>{statement}</li>
+                  ))}
+                </ul>
+                <SourceTags ids={conflict.source_ids} />
               </li>
             ))}
           </ul>
@@ -164,7 +170,8 @@ export default function ResultsView({ response, onStartOver }) {
       {usage && (
         <p className="font-['IBM_Plex_Mono'] text-[11px] text-[#A6A395] pt-2">
           {usage.agent_name} \u00b7 {usage.provider}/{usage.model} \u00b7{" "}
-          {usage.total_tokens} tokens
+          {usage.input_tokens} input · {usage.output_tokens} output ·{" "}
+          {usage.total_tokens} total tokens
         </p>
       )}
     </div>

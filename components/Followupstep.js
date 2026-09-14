@@ -1,38 +1,62 @@
-import { FOLLOW_UP_QUESTIONS } from "@/lib/Purposeconfig";
-
 export default function FollowUpStep({
-  purpose,
+  questions,
   answers,
   onChange,
   onSubmit,
   onBack,
   submitting,
 }) {
-  const questions = FOLLOW_UP_QUESTIONS[purpose] || [];
-
   return (
     <div>
-      <h2 className="font-['Source_Serif_4'] text-2xl text-[#211E1A] mb-2">
-        A few optional questions
+      <h2 className="mb-2 text-2xl text-[#211E1A]">
+        Refine the research
       </h2>
-      <p className="text-[#58554C] text-sm mb-5 max-w-[52ch]">
-        Skip anything you're not sure about \u2014 unanswered questions become
-        declared assumptions in the report rather than blockers.
+
+      <p className="mb-5 max-w-[52ch] text-sm text-[#58554C]">
+        These answers are optional. They help Agent 1 prioritize
+        relevant facts without changing its evidence rules.
       </p>
 
       <div className="space-y-5">
-        {questions.map((q, i) => (
-          <div key={i}>
-            <label className="block text-sm text-[#211E1A] mb-1.5">
-              {q}
+        {questions.map((question) => (
+          <div key={question.id}>
+            <label
+              htmlFor={question.id}
+              className="mb-1.5 block text-sm text-[#211E1A]"
+            >
+              {question.question}
             </label>
-            <input
-              type="text"
-              value={answers[i] || ""}
-              onChange={(e) => onChange(i, e.target.value)}
-              placeholder="Skip if unsure"
-              className="w-full rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-2.5 text-sm text-[#211E1A] placeholder:text-[#A6A395] focus:outline-none focus:ring-2 focus:ring-[#A67C27]/40 focus:border-[#A67C27]"
-            />
+
+            {question.options.length > 0 ? (
+              <select
+                id={question.id}
+                value={answers[question.id] || ""}
+                onChange={(event) =>
+                  onChange(question.id, event.target.value)
+                }
+                className="w-full rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-2.5 text-sm text-[#211E1A] focus:border-[#A67C27] focus:outline-none focus:ring-2 focus:ring-[#A67C27]/40"
+              >
+                <option value="">Skip this question</option>
+                {question.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id={question.id}
+                type="text"
+                value={answers[question.id] || ""}
+                onChange={(event) =>
+                  onChange(question.id, event.target.value)
+                }
+                placeholder={
+                  question.placeholder || "Skip if unsure"
+                }
+                className="w-full rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-2.5 text-sm text-[#211E1A] placeholder:text-[#A6A395] focus:border-[#A67C27] focus:outline-none focus:ring-2 focus:ring-[#A67C27]/40"
+              />
+            )}
           </div>
         ))}
       </div>
@@ -42,17 +66,18 @@ export default function FollowUpStep({
           type="button"
           onClick={onBack}
           disabled={submitting}
-          className="text-sm text-[#58554C] px-4 py-2.5 hover:text-[#211E1A] transition-colors disabled:opacity-40"
+          className="px-4 py-2.5 text-sm text-[#58554C] transition-colors hover:text-[#211E1A] disabled:opacity-40"
         >
           Back
         </button>
+
         <button
           type="button"
           onClick={onSubmit}
           disabled={submitting}
-          className="bg-[#211E1A] text-[#EFF1EC] text-sm font-medium px-6 py-2.5 rounded-sm hover:bg-[#3a352c] transition-colors disabled:opacity-60"
+          className="rounded-sm bg-[#211E1A] px-6 py-2.5 text-sm font-medium text-[#EFF1EC] transition-colors hover:bg-[#3a352c] disabled:opacity-60"
         >
-          {submitting ? "Gathering evidence\u2026" : "Run analysis"}
+          {submitting ? "Gathering evidence…" : "Run Fact Finder"}
         </button>
       </div>
     </div>
