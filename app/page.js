@@ -1,69 +1,140 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import StepRail from "@/components/Steprail";
+import CompanyStep from "@/components/CompanyStep";
+import PurposeStep from "@/components/Purposestep";
+import WebsiteStep from "@/components/Websitestep";
+import DepthStep from "@/components/Depthstep";
+import FollowUpStep from "@/components/Followupstep";
+import ResultsView from "@/components/Resultsview";
+import { runFactFinder } from "@/lib/Factfinder";
+
+const INITIAL_FORM = {
+  companyRequest: "",
+  purpose: "",
+  website: "",
+  depth: "",
+  followUpAnswers: {},
+};
+
+export default function Page() {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [response, setResponse] = useState(null);
+
+  function update(patch) {
+    setForm((f) => ({ ...f, ...patch }));
+  }
+
+  function updateFollowUp(index, value) {
+    setForm((f) => ({
+      ...f,
+      followUpAnswers: { ...f.followUpAnswers, [index]: value },
+    }));
+  }
+
+  async function handleSubmit() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const result = await runFactFinder({
+        companyName: form.companyRequest,
+        officialWebsite: form.website,
+        purpose: form.purpose,
+        followUpAnswers: form.followUpAnswers,
+      });
+      setResponse(result);
+      setStep(6);
+    } catch (err) {
+      setError(err.message || "Something went wrong reaching the research agent.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function startOver() {
+    setForm(INITIAL_FORM);
+    setResponse(null);
+    setError(null);
+    setStep(1);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.js
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="min-h-screen bg-[#EFF1EC]">
+      <header className="border-b border-[#D7D9D0] px-6 md:px-10 py-5">
+        <p className="font-['Source_Serif_4'] text-xl text-[#211E1A]">
+          VentureLens AI
+        </p>
+        <p className="text-[#8A8778] text-xs mt-0.5">
+          Evidence-backed business research, built for your reason for
+          asking.
+        </p>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-6 md:px-10 py-10 md:py-14">
+        {step <= 5 && (
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12">
+            <StepRail currentStep={step} />
+
+            <div className="flex-1 min-w-0">
+              {error && (
+                <div className="mb-5 text-sm text-[#9B3B33] border border-[#9B3B33]/30 bg-[#9B3B33]/5 rounded-sm px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              {step === 1 && (
+                <CompanyStep
+                  value={form.companyRequest}
+                  onChange={(v) => update({ companyRequest: v })}
+                  onNext={() => setStep(2)}
+                />
+              )}
+              {step === 2 && (
+                <PurposeStep
+                  value={form.purpose}
+                  onChange={(v) => update({ purpose: v })}
+                  onNext={() => setStep(3)}
+                  onBack={() => setStep(1)}
+                />
+              )}
+              {step === 3 && (
+                <WebsiteStep
+                  value={form.website}
+                  onChange={(v) => update({ website: v })}
+                  onNext={() => setStep(4)}
+                  onBack={() => setStep(2)}
+                />
+              )}
+              {step === 4 && (
+                <DepthStep
+                  value={form.depth}
+                  onChange={(v) => update({ depth: v })}
+                  onNext={() => setStep(5)}
+                  onBack={() => setStep(3)}
+                />
+              )}
+              {step === 5 && (
+                <FollowUpStep
+                  purpose={form.purpose}
+                  answers={form.followUpAnswers}
+                  onChange={updateFollowUp}
+                  onSubmit={handleSubmit}
+                  onBack={() => setStep(4)}
+                  submitting={submitting}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 6 && (
+          <ResultsView response={response} onStartOver={startOver} />
+        )}
+      </div>
+    </main>
   );
 }
