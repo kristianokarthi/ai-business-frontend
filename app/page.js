@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
+import AnalysisProgress from "@/components/AnalysisProgress";
 import CompanyStep from "@/components/CompanyStep";
 import FollowUpStep from "@/components/Followupstep";
 import PurposeStep from "@/components/Purposestep";
-import ResultsView from "@/components/Resultsview";
 import StepRail from "@/components/Steprail";
 import WebsiteStep from "@/components/Websitestep";
-import { runFactFinder } from "@/lib/Factfinder";
+import useAnalysisWorkflow from "@/hooks/useAnalysisWorkflow";
 import { FOLLOW_UP_QUESTIONS } from "@/lib/Purposeconfig";
 
 
@@ -23,9 +23,7 @@ const INITIAL_FORM = {
 export default function Page() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(INITIAL_FORM);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [response, setResponse] = useState(null);
+  const { workflow, run, retryFailed, reset } = useAnalysisWorkflow();
 
   function update(patch) {
     setForm((current) => ({
@@ -52,33 +50,13 @@ export default function Page() {
   }
 
   async function handleSubmit() {
-    setError("");
-    setSubmitting(true);
-
-    try {
-      const result = await runFactFinder({
-        companyName: form.companyName,
-        officialWebsite: form.website,
-        purpose: form.purpose,
-        followUpAnswers: form.followUpAnswers,
-      });
-
-      setResponse(result);
-      setStep(5);
-    } catch (requestError) {
-      setError(
-        requestError.message ||
-          "Something went wrong while running the Fact Finder."
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    setStep(5);
+    await run(form);
   }
 
   function startOver() {
     setForm(INITIAL_FORM);
-    setResponse(null);
-    setError("");
+    reset();
     setStep(1);
   }
 
@@ -91,7 +69,7 @@ export default function Page() {
           VentureLens AI
         </p>
         <p className="mt-0.5 text-xs text-[#8A8778]">
-          Agent 1: evidence-backed company fact finding
+          Evidence-backed multi-agent business research
         </p>
       </header>
 
@@ -101,15 +79,6 @@ export default function Page() {
             <StepRail currentStep={step} />
 
             <div className="min-w-0 flex-1">
-              {error && (
-                <div
-                  role="alert"
-                  className="mb-5 rounded-sm border border-[#9B3B33]/30 bg-[#9B3B33]/5 px-4 py-3 text-sm text-[#9B3B33]"
-                >
-                  {error}
-                </div>
-              )}
-
               {step === 1 && (
                 <CompanyStep
                   value={form.companyName}
@@ -147,7 +116,7 @@ export default function Page() {
                   onChange={updateFollowUp}
                   onSubmit={handleSubmit}
                   onBack={() => setStep(3)}
-                  submitting={submitting}
+                  submitting={workflow.status === "running"}
                 />
               )}
             </div>
@@ -155,8 +124,10 @@ export default function Page() {
         )}
 
         {step === 5 && (
-          <ResultsView
-            response={response}
+          <AnalysisProgress
+            workflow={workflow}
+            companyName={form.companyName}
+            onRetry={retryFailed}
             onStartOver={startOver}
           />
         )}
