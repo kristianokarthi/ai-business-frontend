@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { runBusinessFundamentals } from "@/lib/Businessfundamentals";
 import { runFactFinder } from "@/lib/Factfinder";
+import { runMarketCompetitor } from "@/lib/Marketcompetitor";
 
 
 export const AGENT_DEFINITIONS = [
@@ -39,6 +40,7 @@ function emptyAgent() {
     status: "pending",
     result: null,
     usage: null,
+    collection: null,
     error: null,
     startedAt: null,
     finishedAt: null,
@@ -96,10 +98,6 @@ export default function useAnalysisWorkflow() {
       finishedAt,
       agents: {
         ...current.agents,
-        marketCompetitor: {
-          ...current.agents.marketCompetitor,
-          status: "waiting_for_sources",
-        },
         customerReputation: {
           ...current.agents.customerReputation,
           status: "waiting_for_sources",
@@ -107,6 +105,49 @@ export default function useAnalysisWorkflow() {
       },
     }));
   }, []);
+
+  const runMarketAgent = useCallback(async (
+    form,
+    factFinderResponse,
+    businessResponse
+  ) => {
+    updateAgent("marketCompetitor", {
+      status: "running",
+      error: null,
+      startedAt: Date.now(),
+      finishedAt: null,
+    });
+
+    try {
+      const response = await runMarketCompetitor({
+        purpose: form.purpose,
+        followUpAnswers: form.followUpAnswers,
+        companyEvidence: factFinderResponse.result,
+        businessFundamentals: businessResponse.result,
+      });
+      resultsRef.current.marketCompetitor = response;
+      updateAgent("marketCompetitor", {
+        status: "completed",
+        result: response.result,
+        usage: response.usage,
+        collection: response.collection,
+        finishedAt: Date.now(),
+      });
+      completeAvailableWorkflow();
+    } catch (error) {
+      updateAgent("marketCompetitor", {
+        status: "failed",
+        error: readableError(error),
+        finishedAt: Date.now(),
+      });
+      setWorkflow((current) => ({
+        ...current,
+        status: "failed",
+        failedAgent: "marketCompetitor",
+        finishedAt: Date.now(),
+      }));
+    }
+  }, [completeAvailableWorkflow, updateAgent]);
 
   const runBusinessAgent = useCallback(async (form, factFinderResponse) => {
     updateAgent("businessFundamentals", {
@@ -129,7 +170,7 @@ export default function useAnalysisWorkflow() {
         usage: response.usage,
         finishedAt: Date.now(),
       });
-      completeAvailableWorkflow();
+      await runMarketAgent(form, factFinderResponse, response);
     } catch (error) {
       updateAgent("businessFundamentals", {
         status: "failed",
@@ -143,7 +184,7 @@ export default function useAnalysisWorkflow() {
         finishedAt: Date.now(),
       }));
     }
-  }, [completeAvailableWorkflow, updateAgent]);
+  }, [runMarketAgent, updateAgent]);
 
   const runFactFinderAgent = useCallback(async (form) => {
     updateAgent("factFinder", {
@@ -211,8 +252,26 @@ export default function useAnalysisWorkflow() {
       return;
     }
 
+    if (
+      workflow.failedAgent === "marketCompetitor" &&
+      resultsRef.current.factFinder &&
+      resultsRef.current.businessFundamentals
+    ) {
+      await runMarketAgent(
+        form,
+        resultsRef.current.factFinder,
+        resultsRef.current.businessFundamentals
+      );
+      return;
+    }
+
     await runFactFinderAgent(form);
-  }, [runBusinessAgent, runFactFinderAgent, workflow.failedAgent]);
+  }, [
+    runBusinessAgent,
+    runFactFinderAgent,
+    runMarketAgent,
+    workflow.failedAgent,
+  ]);
 
   const reset = useCallback(() => {
     resultsRef.current = {};

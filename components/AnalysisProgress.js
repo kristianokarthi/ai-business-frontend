@@ -72,7 +72,75 @@ function completionNote(id, result) {
     return `${findings} business ${findings === 1 ? "finding" : "findings"} prepared`;
   }
 
+  if (id === "marketCompetitor") {
+    const competitors = result.competitors?.length || 0;
+    return `${competitors} ${competitors === 1 ? "competitor" : "competitors"} analysed`;
+  }
+
   return null;
+}
+
+
+function MarketResultPreview({ result }) {
+  if (!result) return null;
+
+  const competitors = result.competitors || [];
+  const findingCount = [
+    ...(result.entry_barriers || []),
+    ...(result.market_trends || []),
+    ...(result.market_gaps || []),
+    ...(result.competitive_risks || []),
+  ].length;
+
+  return (
+    <details className="mt-3 rounded-sm border border-[#56715D]/20 bg-white/60 p-3 text-sm">
+      <summary className="cursor-pointer select-none font-medium text-[#3F5B47]">
+        View Agent 3 result
+      </summary>
+      <div className="mt-3 space-y-3 text-[#58554C]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.1em] text-[#8A8778]">
+            Market
+          </p>
+          <p className="mt-1 text-[#211E1A]">
+            {[result.market_definition?.industry, result.market_definition?.geographic_market]
+              .filter(Boolean)
+              .join(" · ") || "Not established"}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs uppercase tracking-[0.1em] text-[#8A8778]">
+            Competitors
+          </p>
+          <p className="mt-1 text-[#211E1A]">
+            {competitors.length > 0
+              ? competitors.map((competitor) => competitor.name).join(", ")
+              : "No supported competitors identified"}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-[#8A8778]">Market structure</p>
+            <p className="mt-0.5 capitalize text-[#211E1A]">
+              {result.market_structure?.classification || "Unknown"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-[#8A8778]">Market findings</p>
+            <p className="mt-0.5 text-[#211E1A]">{findingCount}</p>
+          </div>
+          <div>
+            <p className="text-xs text-[#8A8778]">Confidence</p>
+            <p className="mt-0.5 capitalize text-[#211E1A]">
+              {result.overall_confidence || "Unknown"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </details>
+  );
 }
 
 
@@ -111,6 +179,11 @@ function AgentCard({ definition, agent, onRetry }) {
 
           {note && <p className="mt-2 text-sm font-medium">{note}</p>}
 
+          {definition.id === "marketCompetitor" &&
+            agent.status === "completed" && (
+              <MarketResultPreview result={agent.result} />
+            )}
+
           {isFailed && (
             <div className="mt-3 rounded-sm border border-[#9B3B33]/20 bg-white/60 p-3">
               <p className="text-sm text-[#8B312A]">{agent.error?.message}</p>
@@ -124,12 +197,16 @@ function AgentCard({ definition, agent, onRetry }) {
             </div>
           )}
 
-          {(agent.usage || duration || agent.error) && (
+          {(agent.status === "running" || agent.usage || duration || agent.error) && (
             <details className="mt-3 text-xs text-[#6D6A5E]">
               <summary className="cursor-pointer select-none font-medium">
                 Technical details
               </summary>
               <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded-sm bg-white/60 p-3 sm:grid-cols-4">
+                <dt>Status</dt>
+                <dd className="text-right text-[#211E1A]">
+                  {agent.status === "running" ? "In progress" : STATUS_LABELS[agent.status]}
+                </dd>
                 {agent.usage?.provider && (
                   <>
                     <dt>Provider</dt>
@@ -152,6 +229,38 @@ function AgentCard({ definition, agent, onRetry }) {
                   <>
                     <dt>Output tokens</dt>
                     <dd className="text-right text-[#211E1A]">{agent.usage.output_tokens.toLocaleString()}</dd>
+                  </>
+                )}
+                {agent.collection?.usage?.credits_used != null && (
+                  <>
+                    <dt>Tavily credits</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.collection.usage.credits_used}
+                    </dd>
+                  </>
+                )}
+                {agent.collection?.usage?.search_requests != null && (
+                  <>
+                    <dt>Web searches</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.collection.usage.search_requests}
+                    </dd>
+                  </>
+                )}
+                {agent.collection?.usage?.selected_urls != null && (
+                  <>
+                    <dt>Sources selected</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.collection.usage.selected_urls}
+                    </dd>
+                  </>
+                )}
+                {agent.collection?.usage?.extracted_documents != null && (
+                  <>
+                    <dt>Sources extracted</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.collection.usage.extracted_documents}
+                    </dd>
                   </>
                 )}
                 {duration && (
@@ -189,6 +298,10 @@ export default function AnalysisProgress({
     (sum, agent) => sum + (agent.usage?.total_tokens || 0),
     0
   );
+  const totalCredits = Object.values(workflow.agents).reduce(
+    (sum, agent) => sum + (agent.collection?.usage?.credits_used || 0),
+    0
+  );
   const isRunning = workflow.status === "running";
   const isWaiting = workflow.status === "awaiting_sources";
   const heading = isRunning
@@ -210,19 +323,31 @@ export default function AnalysisProgress({
           </p>
         </div>
 
-        {totalTokens > 0 && (
-          <div className="rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-3 text-right">
-            <p className="text-xs text-[#8A8778]">Tokens used so far</p>
-            <p className="mt-0.5 text-lg font-medium text-[#211E1A]">
-              {totalTokens.toLocaleString()}
-            </p>
+        {(totalTokens > 0 || totalCredits > 0) && (
+          <div className="flex gap-2">
+            {totalTokens > 0 && (
+              <div className="rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-3 text-right">
+                <p className="text-xs text-[#8A8778]">Tokens used</p>
+                <p className="mt-0.5 text-lg font-medium text-[#211E1A]">
+                  {totalTokens.toLocaleString()}
+                </p>
+              </div>
+            )}
+            {totalCredits > 0 && (
+              <div className="rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-3 text-right">
+                <p className="text-xs text-[#8A8778]">Tavily credits</p>
+                <p className="mt-0.5 text-lg font-medium text-[#211E1A]">
+                  {totalCredits}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {isWaiting && (
         <div className="mt-6 rounded-md border border-[#A67C27]/30 bg-[#A67C27]/5 p-4 text-sm text-[#664B18]">
-          Agents 1 and 2 are complete. Agents 3 and 4 are waiting for the market and public-signal collectors. No sample or invented evidence was sent to them.
+          Agents 1–3 are complete. Agent 4 is waiting for its public-signal collector. No sample or invented evidence was sent to it.
         </div>
       )}
 
