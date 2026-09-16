@@ -13,8 +13,8 @@ export default function FollowUpStep({
       </h2>
 
       <p className="mb-5 max-w-[52ch] text-sm text-[#58554C]">
-        These answers are optional. They help Agent 1 prioritize
-        relevant facts without changing its evidence rules.
+        These answers are optional. They help the agent team focus the
+        research without changing its evidence rules.
       </p>
 
       <div className="space-y-5">
@@ -77,7 +77,7 @@ export default function FollowUpStep({
           disabled={submitting}
           className="rounded-sm bg-[#211E1A] px-6 py-2.5 text-sm font-medium text-[#EFF1EC] transition-colors hover:bg-[#3a352c] disabled:opacity-60"
         >
-          {submitting ? "Gathering evidence…" : "Run Fact Finder"}
+          {submitting ? "Starting research…" : "Start analysis"}
         </button>
       </div>
     </div>
