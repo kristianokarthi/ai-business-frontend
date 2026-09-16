@@ -5,6 +5,7 @@ const STATUS_LABELS = {
   pending: "Queued",
   running: "Working",
   completed: "Complete",
+  insufficient_data: "Insufficient evidence",
   waiting_for_sources: "Waiting for sources",
   failed: "Needs attention",
 };
@@ -14,6 +15,7 @@ const STATUS_STYLES = {
   pending: "border-[#D7D9D0] bg-[#FAFAF8] text-[#8A8778]",
   running: "border-[#A67C27]/50 bg-[#A67C27]/5 text-[#7A5919]",
   completed: "border-[#56715D]/35 bg-[#56715D]/5 text-[#3F5B47]",
+  insufficient_data: "border-[#A67C27]/40 bg-[#A67C27]/5 text-[#7A5919]",
   waiting_for_sources: "border-[#8A8778]/30 bg-[#8A8778]/5 text-[#6D6A5E]",
   failed: "border-[#9B3B33]/35 bg-[#9B3B33]/5 text-[#8B312A]",
 };
@@ -51,6 +53,14 @@ function AgentIcon({ status }) {
     );
   }
 
+  if (status === "insufficient_data") {
+    return (
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#A67C27] text-sm text-white">
+        ?
+      </span>
+    );
+  }
+
   return (
     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#C8C9C0] bg-[#EFF1EC] text-xs text-[#8A8778]">
       •
@@ -73,6 +83,9 @@ function completionNote(id, result) {
   }
 
   if (id === "marketCompetitor") {
+    if (result.status === "insufficient_data") {
+      return "The collected sources did not support a useful market analysis";
+    }
     const competitors = result.competitors?.length || 0;
     return `${competitors} ${competitors === 1 ? "competitor" : "competitors"} analysed`;
   }
@@ -180,7 +193,7 @@ function AgentCard({ definition, agent, onRetry }) {
           {note && <p className="mt-2 text-sm font-medium">{note}</p>}
 
           {definition.id === "marketCompetitor" &&
-            agent.status === "completed" && (
+            ["completed", "insufficient_data"].includes(agent.status) && (
               <MarketResultPreview result={agent.result} />
             )}
 
@@ -276,6 +289,30 @@ function AgentCard({ definition, agent, onRetry }) {
                   </>
                 )}
               </dl>
+              {agent.collection?.market_documents?.length > 0 && (
+                <div className="mt-2 rounded-sm bg-white/60 p-3">
+                  <p className="font-medium text-[#58554C]">
+                    Selected research sources
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {agent.collection.market_documents.map((source) => (
+                      <li key={source.source_id}>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#3F5B47] underline decoration-[#3F5B47]/30 underline-offset-2 hover:decoration-[#3F5B47]"
+                        >
+                          {source.title}
+                        </a>
+                        <span className="ml-1 text-[#8A8778]">
+                          · {source.source_type.replace(/_/g, " ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </details>
           )}
         </div>
@@ -304,11 +341,15 @@ export default function AnalysisProgress({
   );
   const isRunning = workflow.status === "running";
   const isWaiting = workflow.status === "awaiting_sources";
+  const marketIsLimited = workflow.agents.marketCompetitor.status ===
+    "insufficient_data";
   const heading = isRunning
     ? "Research in progress"
     : workflow.status === "failed"
       ? "Research paused"
-      : "Research foundation ready";
+      : marketIsLimited
+        ? "Research completed with limits"
+        : "Research foundation ready";
 
   return (
     <section aria-live="polite" className="mx-auto max-w-3xl">
@@ -347,7 +388,9 @@ export default function AnalysisProgress({
 
       {isWaiting && (
         <div className="mt-6 rounded-md border border-[#A67C27]/30 bg-[#A67C27]/5 p-4 text-sm text-[#664B18]">
-          Agents 1–3 are complete. Agent 4 is waiting for its public-signal collector. No sample or invented evidence was sent to it.
+          {marketIsLimited
+            ? "Agents 1 and 2 are complete, but Agent 3 found insufficient market evidence. Agent 4 is waiting for its public-signal collector."
+            : "Agents 1–3 are complete. Agent 4 is waiting for its public-signal collector. No sample or invented evidence was sent to it."}
         </div>
       )}
 
