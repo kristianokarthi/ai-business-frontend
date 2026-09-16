@@ -127,7 +127,9 @@ export default function useAnalysisWorkflow() {
       });
       resultsRef.current.marketCompetitor = response;
       updateAgent("marketCompetitor", {
-        status: "completed",
+        status: response.result?.status === "insufficient_data"
+          ? "insufficient_data"
+          : "completed",
         result: response.result,
         usage: response.usage,
         collection: response.collection,
