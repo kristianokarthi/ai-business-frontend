@@ -90,7 +90,100 @@ function completionNote(id, result) {
     return `${competitors} ${competitors === 1 ? "competitor" : "competitors"} analysed`;
   }
 
+  if (id === "customerReputation") {
+    const count = result.sample_size || 0;
+    const sentiment = result.sentiment_summary?.classification || "unclear";
+    return `${count} public ${count === 1 ? "signal" : "signals"} analysed · ${sentiment} sentiment`;
+  }
+
   return null;
+}
+
+
+function CustomerResultPreview({ result }) {
+  if (!result) return null;
+
+  const summary = result.sentiment_summary || {};
+  const themeSections = [
+    ["Complaints", result.complaint_themes],
+    ["Customer pain points", result.customer_pain_points],
+    ["Unmet needs", result.unmet_needs],
+    ["Reputation risks", result.reputation_risks],
+  ].filter(([, themes]) => themes?.length > 0);
+
+  const counts = [
+    ["Positive", summary.positive_count],
+    ["Negative", summary.negative_count],
+    ["Neutral", summary.neutral_count],
+    ["Mixed", summary.mixed_count],
+    ["Unclear", summary.unclear_count],
+  ];
+
+  return (
+    <details className="mt-3 rounded-sm border border-[#56715D]/20 bg-white/60 p-3 text-sm">
+      <summary className="cursor-pointer select-none font-medium text-[#3F5B47]">
+        View Agent 4 result
+      </summary>
+      <div className="mt-3 space-y-4 text-[#58554C]">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-[#8A8778]">Overall sentiment</p>
+            <p className="mt-0.5 capitalize text-[#211E1A]">
+              {summary.classification || "Unknown"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-[#8A8778]">Signals analysed</p>
+            <p className="mt-0.5 text-[#211E1A]">{result.sample_size || 0}</p>
+          </div>
+          <div>
+            <p className="text-xs text-[#8A8778]">Confidence</p>
+            <p className="mt-0.5 capitalize text-[#211E1A]">
+              {result.overall_confidence || "Unknown"}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {counts.map(([label, value]) => (
+            <div key={label} className="rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-2 py-2 text-center">
+              <p className="text-xs text-[#8A8778]">{label}</p>
+              <p className="mt-0.5 font-medium text-[#211E1A]">{value || 0}</p>
+            </div>
+          ))}
+        </div>
+
+        {themeSections.map(([label, themes]) => (
+          <div key={label}>
+            <p className="text-xs uppercase tracking-[0.1em] text-[#8A8778]">
+              {label}
+            </p>
+            <ul className="mt-1.5 space-y-1.5 text-[#211E1A]">
+              {themes.map((theme) => (
+                <li key={theme.theme_id} className="flex gap-2">
+                  <span aria-hidden="true" className="text-[#A67C27]">•</span>
+                  <span>{theme.statement}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+
+        {result.missing_information?.length > 0 && (
+          <div>
+            <p className="text-xs uppercase tracking-[0.1em] text-[#8A8778]">
+              Evidence limitations
+            </p>
+            <ul className="mt-1.5 space-y-1 text-[#58554C]">
+              {result.missing_information.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </details>
+  );
 }
 
 
@@ -196,6 +289,17 @@ function AgentCard({ definition, agent, onRetry }) {
             ["completed", "insufficient_data"].includes(agent.status) && (
               <MarketResultPreview result={agent.result} />
             )}
+
+          {definition.id === "customerReputation" &&
+            agent.status === "completed" && (
+              <CustomerResultPreview result={agent.result} />
+            )}
+
+          {agent.status === "insufficient_data" && agent.error?.message && (
+            <p className="mt-3 rounded-sm border border-[#A67C27]/20 bg-white/60 p-3 text-sm text-[#664B18]">
+              {agent.error.message}
+            </p>
+          )}
 
           {isFailed && (
             <div className="mt-3 rounded-sm border border-[#9B3B33]/20 bg-white/60 p-3">
@@ -313,6 +417,30 @@ function AgentCard({ definition, agent, onRetry }) {
                   </ul>
                 </div>
               )}
+              {agent.collection?.signal_documents?.length > 0 && (
+                <div className="mt-2 rounded-sm bg-white/60 p-3">
+                  <p className="font-medium text-[#58554C]">
+                    Selected public-signal sources
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {agent.collection.signal_documents.map((source) => (
+                      <li key={source.signal_id}>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#3F5B47] underline decoration-[#3F5B47]/30 underline-offset-2 hover:decoration-[#3F5B47]"
+                        >
+                          {source.title}
+                        </a>
+                        <span className="ml-1 text-[#8A8778]">
+                          · {source.source_type.replace(/_/g, " ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </details>
           )}
         </div>
@@ -329,7 +457,7 @@ export default function AnalysisProgress({
   onStartOver,
 }) {
   const completed = Object.values(workflow.agents).filter(
-    (agent) => agent.status === "completed"
+    (agent) => ["completed", "insufficient_data"].includes(agent.status)
   ).length;
   const totalTokens = Object.values(workflow.agents).reduce(
     (sum, agent) => sum + (agent.usage?.total_tokens || 0),
@@ -340,23 +468,25 @@ export default function AnalysisProgress({
     0
   );
   const isRunning = workflow.status === "running";
-  const isWaiting = workflow.status === "awaiting_sources";
   const marketIsLimited = workflow.agents.marketCompetitor.status ===
     "insufficient_data";
+  const customerIsLimited = workflow.agents.customerReputation.status ===
+    "insufficient_data";
+  const hasLimitedEvidence = marketIsLimited || customerIsLimited;
   const heading = isRunning
     ? "Research in progress"
     : workflow.status === "failed"
       ? "Research paused"
-      : marketIsLimited
+      : hasLimitedEvidence
         ? "Research completed with limits"
-        : "Research foundation ready";
+        : "Research completed";
 
   return (
     <section aria-live="polite" className="mx-auto max-w-3xl">
       <div className="flex flex-col gap-4 border-b border-[#D7D9D0] pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#8A8778]">
-            {completed} of 4 agents complete
+            {completed} of 4 agents finished
           </p>
           <h2 className="mt-2 text-3xl text-[#211E1A]">{heading}</h2>
           <p className="mt-2 text-sm text-[#58554C]">
@@ -386,11 +516,9 @@ export default function AnalysisProgress({
         )}
       </div>
 
-      {isWaiting && (
+      {!isRunning && workflow.status === "completed" && hasLimitedEvidence && (
         <div className="mt-6 rounded-md border border-[#A67C27]/30 bg-[#A67C27]/5 p-4 text-sm text-[#664B18]">
-          {marketIsLimited
-            ? "Agents 1 and 2 are complete, but Agent 3 found insufficient market evidence. Agent 4 is waiting for its public-signal collector."
-            : "Agents 1–3 are complete. Agent 4 is waiting for its public-signal collector. No sample or invented evidence was sent to it."}
+          The available public sources were insufficient for one or more analysis stages. Completed findings remain available with their confidence and evidence limitations.
         </div>
       )}
 

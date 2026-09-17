@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { runBusinessFundamentals } from "@/lib/Businessfundamentals";
+import { runCustomerReputation } from "@/lib/Customerreputation";
 import { runFactFinder } from "@/lib/Factfinder";
 import { runMarketCompetitor } from "@/lib/Marketcompetitor";
 
@@ -30,7 +31,7 @@ export const AGENT_DEFINITIONS = [
     id: "customerReputation",
     label: "Agent 4",
     title: "Customer and reputation",
-    activity: "Analysing customer and reputation signals",
+    activity: "Collecting public signals and analysing customer reputation",
   },
 ];
 
@@ -89,22 +90,68 @@ export default function useAnalysisWorkflow() {
     }));
   }, []);
 
-  const completeAvailableWorkflow = useCallback(() => {
+  const completeWorkflow = useCallback(() => {
     const finishedAt = Date.now();
     setWorkflow((current) => ({
       ...current,
-      status: "awaiting_sources",
+      status: "completed",
       failedAgent: null,
       finishedAt,
-      agents: {
-        ...current.agents,
-        customerReputation: {
-          ...current.agents.customerReputation,
-          status: "waiting_for_sources",
-        },
-      },
     }));
   }, []);
+
+  const runCustomerAgent = useCallback(async (form) => {
+    updateAgent("customerReputation", {
+      status: "running",
+      result: null,
+      usage: null,
+      collection: null,
+      error: null,
+      startedAt: Date.now(),
+      finishedAt: null,
+    });
+
+    try {
+      const response = await runCustomerReputation({
+        companyName: form.companyName,
+        purpose: form.purpose,
+        followUpAnswers: form.followUpAnswers,
+      });
+      resultsRef.current.customerReputation = response;
+      updateAgent("customerReputation", {
+        status: response.result?.status === "insufficient_data"
+          ? "insufficient_data"
+          : "completed",
+        result: response.result,
+        usage: response.usage,
+        collection: response.collection,
+        finishedAt: Date.now(),
+      });
+      completeWorkflow();
+    } catch (error) {
+      if (error?.code === "insufficient_public_signals") {
+        updateAgent("customerReputation", {
+          status: "insufficient_data",
+          error: readableError(error),
+          finishedAt: Date.now(),
+        });
+        completeWorkflow();
+        return;
+      }
+
+      updateAgent("customerReputation", {
+        status: "failed",
+        error: readableError(error),
+        finishedAt: Date.now(),
+      });
+      setWorkflow((current) => ({
+        ...current,
+        status: "failed",
+        failedAgent: "customerReputation",
+        finishedAt: Date.now(),
+      }));
+    }
+  }, [completeWorkflow, updateAgent]);
 
   const runMarketAgent = useCallback(async (
     form,
@@ -135,7 +182,7 @@ export default function useAnalysisWorkflow() {
         collection: response.collection,
         finishedAt: Date.now(),
       });
-      completeAvailableWorkflow();
+      await runCustomerAgent(form);
     } catch (error) {
       updateAgent("marketCompetitor", {
         status: "failed",
@@ -149,7 +196,7 @@ export default function useAnalysisWorkflow() {
         finishedAt: Date.now(),
       }));
     }
-  }, [completeAvailableWorkflow, updateAgent]);
+  }, [runCustomerAgent, updateAgent]);
 
   const runBusinessAgent = useCallback(async (form, factFinderResponse) => {
     updateAgent("businessFundamentals", {
@@ -267,11 +314,17 @@ export default function useAnalysisWorkflow() {
       return;
     }
 
+    if (workflow.failedAgent === "customerReputation") {
+      await runCustomerAgent(form);
+      return;
+    }
+
     await runFactFinderAgent(form);
   }, [
     runBusinessAgent,
     runFactFinderAgent,
     runMarketAgent,
+    runCustomerAgent,
     workflow.failedAgent,
   ]);
 
