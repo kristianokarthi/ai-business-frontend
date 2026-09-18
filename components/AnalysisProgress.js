@@ -485,6 +485,7 @@ export default function AnalysisProgress({
     0
   );
   const isRunning = workflow.status === "running";
+  const reportIsReady = workflow.agents.reportStrategist.status === "completed";
   const marketIsLimited = workflow.agents.marketCompetitor.status ===
     "insufficient_data";
   const customerIsLimited = workflow.agents.customerReputation.status ===
@@ -499,7 +500,7 @@ export default function AnalysisProgress({
         : "Research completed";
 
   return (
-    <section aria-live="polite" className="mx-auto max-w-3xl">
+    <section aria-live="polite" className="mx-auto max-w-5xl">
       <div className="flex flex-col gap-4 border-b border-[#D7D9D0] pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#8A8778]">
@@ -511,7 +512,7 @@ export default function AnalysisProgress({
           </p>
         </div>
 
-        {(totalTokens > 0 || totalCredits > 0) && (
+        {!reportIsReady && (totalTokens > 0 || totalCredits > 0) && (
           <div className="flex gap-2">
             {totalTokens > 0 && (
               <div className="rounded-sm border border-[#D7D9D0] bg-[#FAFAF8] px-4 py-3 text-right">
@@ -539,19 +540,41 @@ export default function AnalysisProgress({
         </div>
       )}
 
-      <ol className="mt-6 space-y-3">
-        {AGENT_DEFINITIONS.map((definition) => (
-          <AgentCard
-            key={definition.id}
-            definition={definition}
-            agent={workflow.agents[definition.id]}
-            onRetry={onRetry}
-          />
-        ))}
-      </ol>
-
-      {workflow.agents.reportStrategist.status === "completed" && (
+      {reportIsReady && (
         <StrategicReport report={workflow.agents.reportStrategist.result} />
+      )}
+
+      {reportIsReady ? (
+        <details className="report-no-print mt-6 rounded-xl border border-[#D7D9D0] bg-[#FAFAF8] p-5">
+          <summary className="cursor-pointer select-none font-medium text-[#3F5B47]">
+            View research process and technical details
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#7A776C]">
+            <span>{totalTokens.toLocaleString()} AI tokens used</span>
+            <span>{totalCredits} Tavily credits used</span>
+          </div>
+          <ol className="mt-5 space-y-3">
+            {AGENT_DEFINITIONS.map((definition) => (
+              <AgentCard
+                key={definition.id}
+                definition={definition}
+                agent={workflow.agents[definition.id]}
+                onRetry={onRetry}
+              />
+            ))}
+          </ol>
+        </details>
+      ) : (
+        <ol className="mt-6 space-y-3">
+          {AGENT_DEFINITIONS.map((definition) => (
+            <AgentCard
+              key={definition.id}
+              definition={definition}
+              agent={workflow.agents[definition.id]}
+              onRetry={onRetry}
+            />
+          ))}
+        </ol>
       )}
 
       {!isRunning && (

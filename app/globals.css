@@ -24,3 +24,63 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .report-print-root,
+  .report-print-root * {
+    visibility: visible;
+  }
+
+  .report-print-root {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .report-no-print,
+  .report-evidence {
+    display: none !important;
+  }
+
+  .report-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-page a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  .report-page details > summary {
+    display: none !important;
+  }
+
+  .report-page details > * {
+    display: block !important;
+  }
+
+  .report-page .report-evidence {
+    display: none !important;
+  }
+}
