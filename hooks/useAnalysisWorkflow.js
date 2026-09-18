@@ -6,6 +6,7 @@ import { runBusinessFundamentals } from "@/lib/Businessfundamentals";
 import { runCustomerReputation } from "@/lib/Customerreputation";
 import { runFactFinder } from "@/lib/Factfinder";
 import { runMarketCompetitor } from "@/lib/Marketcompetitor";
+import { runReportStrategist } from "@/lib/Reportstrategist";
 
 
 export const AGENT_DEFINITIONS = [
@@ -33,6 +34,12 @@ export const AGENT_DEFINITIONS = [
     title: "Customer and reputation",
     activity: "Collecting public signals and analysing customer reputation",
   },
+  {
+    id: "reportStrategist",
+    label: "Agent 5",
+    title: "Strategic research report",
+    activity: "Synthesising the evidence into a decision-focused report",
+  },
 ];
 
 
@@ -42,6 +49,7 @@ function emptyAgent() {
     result: null,
     usage: null,
     collection: null,
+    context: null,
     error: null,
     startedAt: null,
     finishedAt: null,
@@ -100,6 +108,49 @@ export default function useAnalysisWorkflow() {
     }));
   }, []);
 
+  const runReportAgent = useCallback(async (form) => {
+    updateAgent("reportStrategist", {
+      status: "running",
+      result: null,
+      usage: null,
+      context: null,
+      error: null,
+      startedAt: Date.now(),
+      finishedAt: null,
+    });
+
+    try {
+      const response = await runReportStrategist({
+        form,
+        factFinder: resultsRef.current.factFinder,
+        businessFundamentals: resultsRef.current.businessFundamentals,
+        marketCompetitor: resultsRef.current.marketCompetitor,
+        customerReputation: resultsRef.current.customerReputation,
+      });
+      resultsRef.current.reportStrategist = response;
+      updateAgent("reportStrategist", {
+        status: "completed",
+        result: response.result,
+        usage: response.usage,
+        context: response.context,
+        finishedAt: Date.now(),
+      });
+      completeWorkflow();
+    } catch (error) {
+      updateAgent("reportStrategist", {
+        status: "failed",
+        error: readableError(error),
+        finishedAt: Date.now(),
+      });
+      setWorkflow((current) => ({
+        ...current,
+        status: "failed",
+        failedAgent: "reportStrategist",
+        finishedAt: Date.now(),
+      }));
+    }
+  }, [completeWorkflow, updateAgent]);
+
   const runCustomerAgent = useCallback(async (form) => {
     updateAgent("customerReputation", {
       status: "running",
@@ -127,12 +178,22 @@ export default function useAnalysisWorkflow() {
         collection: response.collection,
         finishedAt: Date.now(),
       });
-      completeWorkflow();
+      await runReportAgent(form);
     } catch (error) {
       if (error?.code === "insufficient_public_signals") {
         updateAgent("customerReputation", {
           status: "insufficient_data",
           error: readableError(error),
+          finishedAt: Date.now(),
+        });
+        updateAgent("reportStrategist", {
+          status: "insufficient_data",
+          error: {
+            message: "A final report could not be generated because Agent 4 did not return structured evidence.",
+            code: "missing_customer_reputation",
+            status: null,
+            retryAfter: null,
+          },
           finishedAt: Date.now(),
         });
         completeWorkflow();
@@ -151,7 +212,7 @@ export default function useAnalysisWorkflow() {
         finishedAt: Date.now(),
       }));
     }
-  }, [completeWorkflow, updateAgent]);
+  }, [completeWorkflow, runReportAgent, updateAgent]);
 
   const runMarketAgent = useCallback(async (
     form,
@@ -319,12 +380,24 @@ export default function useAnalysisWorkflow() {
       return;
     }
 
+    if (
+      workflow.failedAgent === "reportStrategist" &&
+      resultsRef.current.factFinder &&
+      resultsRef.current.businessFundamentals &&
+      resultsRef.current.marketCompetitor &&
+      resultsRef.current.customerReputation
+    ) {
+      await runReportAgent(form);
+      return;
+    }
+
     await runFactFinderAgent(form);
   }, [
     runBusinessAgent,
     runFactFinderAgent,
     runMarketAgent,
     runCustomerAgent,
+    runReportAgent,
     workflow.failedAgent,
   ]);
 
