@@ -98,9 +98,7 @@ function completionNote(id, result) {
   }
 
   if (id === "reportStrategist") {
-    const words = result.word_count || 0;
-    const confidence = result.confidence_assessment?.overall_confidence || "unknown";
-    return `${words.toLocaleString()} words · ${confidence} confidence`;
+    return "Final research report prepared";
   }
 
   return null;
@@ -132,7 +130,7 @@ function CustomerResultPreview({ result }) {
         View Agent 4 result
       </summary>
       <div className="mt-3 space-y-4 text-[#58554C]">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-[#8A8778]">Overall sentiment</p>
             <p className="mt-0.5 capitalize text-[#211E1A]">
@@ -142,12 +140,6 @@ function CustomerResultPreview({ result }) {
           <div>
             <p className="text-xs text-[#8A8778]">Signals analysed</p>
             <p className="mt-0.5 text-[#211E1A]">{result.sample_size || 0}</p>
-          </div>
-          <div>
-            <p className="text-xs text-[#8A8778]">Confidence</p>
-            <p className="mt-0.5 capitalize text-[#211E1A]">
-              {result.overall_confidence || "Unknown"}
-            </p>
           </div>
         </div>
 
@@ -233,7 +225,7 @@ function MarketResultPreview({ result }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-[#8A8778]">Market structure</p>
             <p className="mt-0.5 capitalize text-[#211E1A]">
@@ -243,12 +235,6 @@ function MarketResultPreview({ result }) {
           <div>
             <p className="text-xs text-[#8A8778]">Market findings</p>
             <p className="mt-0.5 text-[#211E1A]">{findingCount}</p>
-          </div>
-          <div>
-            <p className="text-xs text-[#8A8778]">Confidence</p>
-            <p className="mt-0.5 capitalize text-[#211E1A]">
-              {result.overall_confidence || "Unknown"}
-            </p>
           </div>
         </div>
       </div>
@@ -549,7 +535,7 @@ export default function AnalysisProgress({
 
       {!isRunning && workflow.status === "completed" && hasLimitedEvidence && (
         <div className="mt-6 rounded-md border border-[#A67C27]/30 bg-[#A67C27]/5 p-4 text-sm text-[#664B18]">
-          The available public sources were insufficient for one or more analysis stages. Completed findings remain available with their confidence and evidence limitations.
+          The available public sources were insufficient for one or more analysis stages. Completed findings remain available with their evidence limitations.
         </div>
       )}
 
