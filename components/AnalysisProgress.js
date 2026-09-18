@@ -1,4 +1,5 @@
 import { AGENT_DEFINITIONS } from "@/hooks/useAnalysisWorkflow";
+import StrategicReport from "@/components/StrategicReport";
 
 
 const STATUS_LABELS = {
@@ -94,6 +95,12 @@ function completionNote(id, result) {
     const count = result.sample_size || 0;
     const sentiment = result.sentiment_summary?.classification || "unclear";
     return `${count} public ${count === 1 ? "signal" : "signals"} analysed · ${sentiment} sentiment`;
+  }
+
+  if (id === "reportStrategist") {
+    const words = result.word_count || 0;
+    const confidence = result.confidence_assessment?.overall_confidence || "unknown";
+    return `${words.toLocaleString()} words · ${confidence} confidence`;
   }
 
   return null;
@@ -380,6 +387,30 @@ function AgentCard({ definition, agent, onRetry }) {
                     </dd>
                   </>
                 )}
+                {agent.context?.estimated_tokens != null && (
+                  <>
+                    <dt>Report context</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.context.estimated_tokens.toLocaleString()} tokens
+                    </dd>
+                  </>
+                )}
+                {agent.context?.evidence_source_count != null && (
+                  <>
+                    <dt>Evidence sources</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.context.evidence_source_count}
+                    </dd>
+                  </>
+                )}
+                {agent.context?.truncated_for_budget != null && (
+                  <>
+                    <dt>Context trimmed</dt>
+                    <dd className="text-right text-[#211E1A]">
+                      {agent.context.truncated_for_budget ? "Yes" : "No"}
+                    </dd>
+                  </>
+                )}
                 {duration && (
                   <>
                     <dt>Duration</dt>
@@ -486,7 +517,7 @@ export default function AnalysisProgress({
       <div className="flex flex-col gap-4 border-b border-[#D7D9D0] pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#8A8778]">
-            {completed} of 4 agents finished
+            {completed} of {AGENT_DEFINITIONS.length} agents finished
           </p>
           <h2 className="mt-2 text-3xl text-[#211E1A]">{heading}</h2>
           <p className="mt-2 text-sm text-[#58554C]">
@@ -532,6 +563,10 @@ export default function AnalysisProgress({
           />
         ))}
       </ol>
+
+      {workflow.agents.reportStrategist.status === "completed" && (
+        <StrategicReport report={workflow.agents.reportStrategist.result} />
+      )}
 
       {!isRunning && (
         <div className="mt-8 flex justify-end">
