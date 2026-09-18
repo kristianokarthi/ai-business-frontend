@@ -1,23 +1,9 @@
-function ConfidenceBadge({ value }) {
-  if (!value) return null;
-
-  return (
-    <span className="rounded-full border border-[#B8B9B0] px-2 py-0.5 text-[11px] font-medium capitalize text-[#6D6A5E]">
-      {value} confidence
-    </span>
-  );
-}
-
-
 function Insight({ insight }) {
   if (!insight) return null;
 
   return (
     <article className="rounded-md border border-[#D7D9D0] bg-white/70 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h4 className="font-medium text-[#211E1A]">{insight.title}</h4>
-        <ConfidenceBadge value={insight.confidence} />
-      </div>
+      <h4 className="font-medium text-[#211E1A]">{insight.title}</h4>
       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[#58554C]">
         {insight.analysis}
       </p>
@@ -62,11 +48,7 @@ export default function StrategicReport({ report }) {
         <h2 className="mt-2 text-2xl text-[#211E1A] sm:text-3xl">
           {report.title}
         </h2>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#6D6A5E]">
-          <span>{report.word_count?.toLocaleString() || 0} words</span>
-          <span aria-hidden="true">·</span>
-          <span className="capitalize">{confidence.overall_confidence || "unknown"} confidence</span>
-          <span aria-hidden="true">·</span>
+        <div className="mt-3 text-xs text-[#6D6A5E]">
           <span>{report.sources_used?.length || 0} cited sources</span>
         </div>
       </div>
@@ -118,18 +100,14 @@ export default function StrategicReport({ report }) {
           </section>
         )}
 
-        <section className="rounded-md border border-[#A67C27]/25 bg-[#A67C27]/5 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-medium text-[#211E1A]">Confidence and limitations</h3>
-            <ConfidenceBadge value={confidence.overall_confidence} />
-          </div>
-          <p className="mt-2 text-sm leading-6 text-[#58554C]">{confidence.rationale}</p>
-          {confidence.limitations?.length > 0 && (
+        {confidence.limitations?.length > 0 && (
+          <section className="rounded-md border border-[#A67C27]/25 bg-[#A67C27]/5 p-4">
+            <h3 className="font-medium text-[#211E1A]">Evidence limitations</h3>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#58554C]">
               {confidence.limitations.map((item) => <li key={item}>{item}</li>)}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
 
         {report.missing_information?.length > 0 && (
           <section>
