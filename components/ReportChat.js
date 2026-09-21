@@ -61,7 +61,7 @@ export default function ReportChat({ report }) {
         setPhase("Preparing this report for questions…");
         const preview = await postJSON("/api/rag/chunks/preview", { report }, { signal: abort.signal });
         if (!Array.isArray(preview?.chunks) || !preview.chunks.length) throw new Error("This report has no searchable sections yet.");
-        if (preview.chunks.length > 50) throw new Error("This report exceeds the chat service's current 50-section limit.");
+        if (preview.chunks.length > 120) throw new Error("This report exceeds the chat service's current 120-section limit.");
         chunks.current = preview.chunks;
       }
       setPhase("Reading relevant sections and preparing your answer…");
