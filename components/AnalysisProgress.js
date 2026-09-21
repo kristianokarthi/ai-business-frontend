@@ -1,5 +1,6 @@
 import { AGENT_DEFINITIONS } from "@/hooks/useAnalysisWorkflow";
 import StrategicReport from "@/components/StrategicReport";
+import ReportChat from "@/components/ReportChat";
 
 
 const STATUS_LABELS = {
@@ -541,7 +542,13 @@ export default function AnalysisProgress({
       )}
 
       {reportIsReady && (
-        <StrategicReport report={workflow.agents.reportStrategist.result} />
+        <>
+          <StrategicReport report={workflow.agents.reportStrategist.result} />
+          <ReportChat
+            key={JSON.stringify(workflow.agents.reportStrategist.result)}
+            report={workflow.agents.reportStrategist.result}
+          />
+        </>
       )}
 
       {reportIsReady ? (
